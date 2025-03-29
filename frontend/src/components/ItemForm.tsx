@@ -6,25 +6,40 @@ import ImageUpload from './ImageUpload';
 import { ClipboardDocumentIcon } from '@heroicons/react/24/outline';
 import { CheckIcon } from '@heroicons/react/24/solid';
 
+/**
+ * Component representing the form used to create (hide) a new item.
+ * It handles user input for title, description, location (via Map component),
+ * and image (via ImageUpload component). It manages form state, validation,
+ * submission to the backend API, and displays success/error messages.
+ */
 export default function ItemForm() {
+    // Form field states
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [location, setLocation] = useState<Location | null>(null);
-    const [image, setImage] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<CreateItemResponse | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [copied, setCopied] = useState(false); // State for copy feedback
+    const [location, setLocation] = useState<Location | null>(null); // Selected location from Map component
+    const [image, setImage] = useState<string | null>(null);         // Base64 image string from ImageUpload component
+    // UI/Flow states
+    const [error, setError] = useState<string | null>(null);         // Stores any submission or validation error messages
+    const [success, setSuccess] = useState<CreateItemResponse | null>(null); // Stores the successful API response (item_id, secret_key)
+    const [isSubmitting, setIsSubmitting] = useState(false);         // Tracks if the form is currently being submitted
+    const [copied, setCopied] = useState(false);                     // Tracks if the success URL has been copied
 
+    /**
+     * Handles the form submission process.
+     * Validates inputs, calls the backend API, handles success/error states,
+     * and resets the form upon success.
+     */
     const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
+        e.preventDefault(); // Prevent default form submission
+        // Reset error/success states on new submission attempt
         setError(null);
         setSuccess(null);
 
-        // Validate form
+        // --- Form Validation ---
+        // Basic validation checks for required fields.
         if (!title.trim()) {
             setError('Title is required');
-            return;
+            return; // Stop submission if validation fails
         }
         if (!description.trim()) {
             setError('Description is required');
@@ -34,43 +49,58 @@ export default function ItemForm() {
             setError('Please select a location on the map');
             return;
         }
-        if (!image) {
+        if (!image) { // Image is expected as a Base64 string
             setError('Please upload an image');
             return;
         }
 
+        // --- API Call ---
         try {
-            setIsSubmitting(true);
+            setIsSubmitting(true); // Set loading state
+            // Call the API utility function to create the item.
             const response = await createItem({
-                title: title.trim(),
+                title: title.trim(), // Trim whitespace from text inputs
                 description: description.trim(),
                 latitude: location.latitude,
                 longitude: location.longitude,
-                image,
+                image, // Pass the Base64 image string
             });
-            setSuccess(response);
-            // Reset form
+            // --- Success Handling ---
+            setSuccess(response); // Store the response containing item_id and secret_key
+            // Reset form fields to allow for another submission
             setTitle('');
             setDescription('');
             setLocation(null);
-            setImage(null);
+            setImage(null); // Note: This doesn't clear the preview in ImageUpload, might need explicit reset there if desired.
         } catch (err) {
+            // --- Error Handling ---
+            // Set error message for display
             setError(err instanceof Error ? err.message : 'Failed to create item');
         } finally {
-            setIsSubmitting(false);
+            // --- Cleanup ---
+            setIsSubmitting(false); // Reset loading state regardless of success/failure
         }
     };
 
+    /**
+     * Handles copying the generated secret URL to the clipboard.
+     * Provides visual feedback by changing the icon temporarily.
+     */
     const handleCopy = () => {
         if (success) {
+            // Construct the full URL using the response data
             const url = `${window.location.origin}/items/${success.item_id}?key=${success.secret_key}`;
+            // Use the Clipboard API to copy the text
             navigator.clipboard.writeText(url).then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000); // Reset icon after 2 seconds
+                setCopied(true); // Set state to show feedback (e.g., checkmark icon)
+                // Reset the feedback icon after a short delay
+                setTimeout(() => setCopied(false), 2000);
             });
         }
     };
 
+    // --- Render Logic ---
+    // If submission was successful, show the success message and URL
     if (success) {
         const url = `${window.location.origin}/items/${success.item_id}?key=${success.secret_key}`;
         return (
