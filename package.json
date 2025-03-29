@@ -1,0 +1,22 @@
+{
+    "name": "nntin-uubrella",
+    "version": "1.0.0",
+    "description": "A web application for discretely sharing the location of found items",
+    "scripts": {
+        "dev": "cd frontend && npm run dev",
+        "build": "cd frontend && npm run build",
+        "deploy:frontend": "cd frontend && npm run build",
+        "deploy:cdk": "cd infrastructure && npm run cdk deploy",
+        "deploy": "npm run deploy:frontend && npm run deploy:cdk",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "lost-and-found",
+        "aws",
+        "serverless",
+        "react",
+        "python"
+    ],
+    "author": "",
+    "license": "ISC"
+}
