@@ -19,7 +19,7 @@ export interface CreateItemRequest {
 export interface CreateItemResponse {
     item_id: string;
     secret_key: string;
-    secret_url: string;
+    secret_url_path: string; // Changed from secret_url
 }
 
 export interface Location {

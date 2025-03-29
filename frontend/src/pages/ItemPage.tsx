@@ -127,7 +127,9 @@ export default function ItemPage() {
 
                 {/* Creation Date */}
                 <div className="text-sm text-gray-500 text-center"> {/* Centered text */}
-                    Hidden on {new Date(item.created_at).toLocaleDateString()}
+                    Hidden on {new Date(item.created_at).toLocaleDateString('en-CA', { // Use options for YYYY-MM-DD
+                        year: 'numeric', month: '2-digit', day: '2-digit'
+                    })}
                 </div>
             </div>
         </div>
