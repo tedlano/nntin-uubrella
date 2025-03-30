@@ -214,7 +214,7 @@ class InfrastructureStack(Stack):
             "HiddenItemsDistribution",
             default_behavior=cloudfront.BehaviorOptions(
                 # Use OAI origin instead of public S3 website endpoint
-                origin=origins.S3Origin(website_bucket, origin_access_identity=oai),
+                origin=origins.S3BucketOrigin(website_bucket, origin_access_identity=oai),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
                 allowed_methods=cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
                 cached_methods=cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
