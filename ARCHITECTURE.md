@@ -1,153 +1,90 @@
-# UUbrella - Hidden Items Application Architecture Plan
+# UUbrella Application Architecture
 
-## 1. System Architecture
+This document outlines the technical architecture of the UUbrella application.
+
+## Overview
+
+UUbrella is a web application designed to allow users to "hide" items (represented by data like title, description, location, image) and share them either publicly or privately via a secret link. It follows a modern serverless architecture hosted on AWS, comprising a Single-Page Application (SPA) frontend and a serverless backend API.
 
 ```mermaid
 graph TD
-    subgraph "Frontend - React + Vite"
-        UI[Web UI]
-        MAP[Map Component]
-        UPLOAD[Image Upload]
+    subgraph "User Browser"
+        A[React SPA Frontend]
     end
 
-    subgraph "AWS Services"
-        API[API Gateway]
-        LAMBDA[Lambda Functions]
-        S3[S3 Bucket]
-        DYNAMO[DynamoDB]
-        CF[CloudFront]
+    subgraph "AWS Cloud"
+        B(CloudFront Distribution) -- Serves SPA --> A
+        C(S3 Website Bucket) -- Stores SPA Build --> B
+        D(API Gateway) -- REST API --> A
+        E(Lambda: Create Item)
+        F(Lambda: Get Item)
+        G(Lambda: Get Public Items)
+        H(DynamoDB: Items Table) -- Stores Item Metadata --> E & F & G
+        I(S3 Images Bucket) -- Stores Item Images --> E & F
     end
 
-    UI --> CF
-    CF --> S3
-    UI --> API
-    API --> LAMBDA
-    LAMBDA --> DYNAMO
-    LAMBDA --> S3
+    A -- API Calls --> D
+    B -- Forwards API Requests --> D
+    D -- Triggers --> E
+    D -- Triggers --> F
+    D -- Triggers --> G
+    E -- Reads/Writes --> H
+    E -- Writes --> I
+    F -- Reads --> H
+    F -- Reads --> I
+    G -- Reads (GSI) --> H
+
+    style A fill:#lightblue
+    style B fill:#lightgreen
+    style C fill:#lightgrey
+    style D fill:#orange
+    style E fill:#yellow
+    style F fill:#yellow
+    style G fill:#yellow
+    style H fill:#pink
+    style I fill:#lightgrey
 ```
 
-## 2. Data Model
+## Frontend (`frontend/`)
 
-```mermaid
-erDiagram
-    HIDDEN_ITEM {
-        string item_id
-        string title
-        string description
-        string image_url
-        float latitude
-        float longitude
-        timestamp created_at
-        string secret_key
-    }
-```
+*   **Framework:** React with TypeScript.
+*   **Build Tool:** Vite.
+*   **Styling:** Tailwind CSS.
+*   **Routing:** `react-router-dom` for client-side routing.
+*   **Key Components/Pages:**
+    *   `App.tsx`: Main application shell, routing setup, navigation (currently being refactored for side nav).
+    *   `HomePage.tsx`: Landing page, likely includes the form to create/hide an item.
+    *   `ItemPage.tsx`: Displays details of a specific item (fetched using ID and potentially a secret key).
+    *   `CommunityMapPage.tsx`: Displays a map showing publicly shared items.
+    *   `ItemForm.tsx`: Component for the item creation form.
+    *   `Map.tsx`: Reusable Leaflet map component.
+    *   `ImageUpload.tsx`: Component for handling image uploads.
+*   **API Interaction:** Uses `fetch` via helper functions in `src/utils/api.ts` to communicate with the backend API Gateway. The base URL is configured via the `VITE_API_URL` environment variable.
+*   **State Management:** Primarily component-level state using `useState`.
 
-## 3. API Design
+## Backend (API)
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API Gateway
-    participant Lambda
-    participant S3
-    participant DynamoDB
+*   **Technology:** Serverless functions using AWS Lambda (Python 3.11 runtime).
+*   **API Gateway (`HiddenItemsApi`):** Provides RESTful endpoints (`/items`, `/items/{id}`, `/public/items`). Handles request routing, CORS, and deployment stages (e.g., `prod`).
+*   **Lambda Functions (`backend/functions/`):**
+    *   `create_item`: Handles `POST /items`. Stores metadata in DynamoDB and image info (URL likely stored).
+    *   `get_item`: Handles `GET /items/{id}`. Retrieves item data from DynamoDB. Includes logic for private items.
+    *   `get_public_items`: Handles `GET /public/items`. Queries the DynamoDB Global Secondary Index (`visibility-created_at-index`) for public items.
+    *   `get_all_items`: (Not exposed via API Gateway currently) Scans DynamoDB table.
+*   **Data Storage:**
+    *   **DynamoDB (`HiddenItemsTable`):** Stores item metadata. Uses Pay-Per-Request billing. Has a GSI on `visibility` and `created_at` for public queries.
+    *   **S3 (`HiddenItemsImagesBucket`):** Stores uploaded image files. Configured with public read access and CORS for uploads.
 
-    %% Create Hidden Item
-    Client->>API Gateway: POST /items
-    API Gateway->>Lambda: Create Item Handler
-    Lambda->>S3: Upload Image
-    Lambda->>DynamoDB: Store Item Data
-    Lambda->>Client: Return Secret URL
+## Infrastructure (`infrastructure/`)
 
-    %% View Hidden Item
-    Client->>API Gateway: GET /items/{id}?key={secret_key}
-    API Gateway->>Lambda: Get Item Handler
-    Lambda->>DynamoDB: Fetch Item Data
-    Lambda->>Client: Return Item Details
-```
+*   **Provisioning:** AWS Cloud Development Kit (CDK) v2 using Python.
+*   **Stack (`InfrastructureStack`):** Defines all AWS resources (S3, DynamoDB, Lambda, API Gateway, CloudFront, OAI) in `infrastructure/infrastructure/infrastructure_stack.py`. Resources are configured with `RemovalPolicy.DESTROY` for easier cleanup during development.
+*   **Hosting:** Frontend SPA build is stored in `HiddenItemsWebsiteBucket`.
+*   **CDN:** CloudFront (`HiddenItemsDistribution`) serves the SPA from S3 via Origin Access Identity (OAI), enforces HTTPS, and handles SPA routing (403/404 errors redirect to `/index.html`).
 
-## 4. Technical Components
+## Deployment
 
-### Frontend (React + Vite)
-- Single Page Application
-- Components:
-  - Map viewer (using Leaflet or Google Maps)
-  - Image upload with preview
-  - Location picker
-  - Share link generator
-- Styling with TailwindCSS
+1.  **Frontend Build:** `npm run build` in `frontend/` creates production assets in `frontend/dist/`.
+2.  **Infrastructure & Frontend Deployment:** `cdk deploy` executed in `infrastructure/` provisions/updates AWS resources *and* uses `s3deploy.BucketDeployment` to upload the contents of `frontend/dist/` to the S3 website bucket, invalidating the CloudFront cache (`/*`).
 
-### Backend (Python Lambda)
-- API Endpoints:
-  - `POST /items` - Create new hidden item
-  - `GET /items/{id}` - Get item details
-- Image processing and optimization
-- Secret URL generation
-
-### Infrastructure (AWS CDK)
-- S3 bucket for:
-  - Frontend static hosting
-  - Image storage
-- DynamoDB table for item data
-- Lambda functions
-- API Gateway
-- CloudFront distribution
-
-## 5. Security Considerations
-- Generate secure random URLs for each item
-- Rate limiting on API endpoints
-- Image file validation
-- CORS configuration
-- Content-Security-Policy headers
-
-## 6. Cost Optimization
-- Image optimization before storage
-- CloudFront caching
-- Lambda function optimization
-- DynamoDB on-demand pricing
-- S3 lifecycle policies
-
-## 7. Implementation Phases
-
-### Phase 1: MVP
-1. Basic frontend setup with Vite and React
-2. Core Lambda functions for item creation/retrieval
-3. Basic map integration
-4. Simple image upload
-5. Infrastructure deployment
-
-### Phase 2: Enhancements
-1. Image optimization
-2. Improved UI/UX
-3. Better error handling
-4. Loading states
-5. Mobile responsiveness
-
-### Phase 3: Additional Features
-1. Item expiration
-2. Multiple images per item
-3. Optional contact information
-4. Report inappropriate content
-5. Analytics
-
-## Directory Structure
-```
-nntin-uubrella/
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── pages/
-│   │   └── utils/
-│   ├── public/
-│   └── index.html
-├── backend/
-│   ├── functions/
-│   │   ├── create_item/
-│   │   └── get_item/
-│   └── layers/
-├── infrastructure/
-│   ├── lib/
-│   │   └── stacks/
-│   └── bin/
-└── README.md
+This architecture leverages managed AWS services for scalability and operational efficiency.

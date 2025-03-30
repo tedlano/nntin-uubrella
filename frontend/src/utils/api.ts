@@ -1,4 +1,4 @@
-import { CreateItemRequest, CreateItemResponse, Item } from '../types/item';
+import { CreateItemRequest, CreateItemResponse, Item, PublicItemSummary } from '../types/item'; // Added PublicItemSummary
 
 // Determine the API base URL from environment variables (set during build/deployment)
 // Falls back to a default localhost URL for local development if VITE_API_URL is not set.
@@ -6,72 +6,96 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'; //
 
 /**
  * Sends a request to the backend API to create a new hidden item.
- * @param data - The item data to be created (title, description, location, base64 image).
- * @returns A promise that resolves with the API response (item_id, secret_key).
+ * @param data - The item data including title, description, location, image, and optionally visibility/category.
+ * @returns A promise that resolves with the API response (item_id, and optionally secret_key/secret_url_path for private items).
  * @throws An error if the API request fails or returns a non-OK status.
  */
 export async function createItem(data: CreateItemRequest): Promise<CreateItemResponse> {
     const response = await fetch(`${API_BASE_URL}/items`, {
-        method: 'POST', // Use POST for creating resources
+        method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data), // Send data as a JSON string
+        body: JSON.stringify(data), // Sends visibility and category if present in data object
     });
 
-    // Check if the response status indicates success (e.g., 200 OK)
     if (!response.ok) {
-        // If not OK, try to parse the error message from the response body
         let errorMessage = 'Failed to create item';
         try {
             const errorBody = await response.json();
-            errorMessage = errorBody.error || errorMessage; // Use error message from backend if available
-        } catch (e) {
-            // Ignore if response body is not JSON or empty
-        }
-        // Throw an error to be caught by the calling component
+            errorMessage = errorBody.error || errorMessage;
+        } catch (e) { /* Ignore JSON parsing errors */ }
         throw new Error(errorMessage);
     }
 
-    // If response is OK, parse the JSON body and return it
     return response.json();
 }
 
 /**
  * Fetches the details of a specific hidden item from the backend API.
- * Requires the item ID and the secret key for authorization.
+ * Requires the item ID. If the item is private, the secret key must be provided as a query parameter.
  * @param itemId - The unique ID of the item to fetch.
- * @param secretKey - The secret key required to access the item details.
- * @returns A promise that resolves with the item details.
- * @throws An error if the API request fails, the item is not found, or the key is invalid.
+ * @param secretKey - The secret key (only required and checked by backend for private items).
+ * @returns A promise that resolves with the full item details.
+ * @throws An error if the API request fails, the item is not found, or the key is invalid/missing for a private item.
  */
-export async function getItem(itemId: string, secretKey: string): Promise<Item> {
-    // Construct the URL with item ID in the path and secret key as a query parameter
-    const response = await fetch(`${API_BASE_URL}/items/${itemId}?key=${secretKey}`, {
-        method: 'GET', // Use GET for retrieving resources
+export async function getItem(itemId: string, secretKey?: string): Promise<Item> { // Made secretKey optional here
+    // Construct URL, conditionally add key parameter if provided
+    let url = `${API_BASE_URL}/items/${itemId}`;
+    if (secretKey) {
+        url += `?key=${encodeURIComponent(secretKey)}`; // Ensure key is URL encoded
+    }
+
+    const response = await fetch(url, {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json',
         },
     });
 
-    // Check if the response status indicates success
     if (!response.ok) {
         let errorMessage = 'Failed to fetch item';
         try {
             const errorBody = await response.json();
             errorMessage = errorBody.error || errorMessage;
-        } catch (e) {
-            // Ignore JSON parsing errors
-        }
-        // Throw specific errors based on status code if possible, otherwise generic
+        } catch (e) { /* Ignore JSON parsing errors */ }
+
+        // Throw specific errors based on status code
         if (response.status === 404) {
             throw new Error('Item not found');
         } else if (response.status === 403) {
             throw new Error('Invalid secret key');
+        } else if (response.status === 401) { // Handle missing key for private item
+            throw new Error('Secret key is required for this item');
         }
         throw new Error(errorMessage);
     }
 
-    // If response is OK, parse and return the item data
+    return response.json();
+}
+
+/**
+ * Fetches a list of publicly visible items.
+ * @returns A promise that resolves with an object containing a list of public item summaries.
+ * @throws An error if the API request fails.
+ */
+export async function getPublicItems(): Promise<{ items: PublicItemSummary[] }> {
+    const response = await fetch(`${API_BASE_URL}/public/items`, { // Use the new endpoint
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        let errorMessage = 'Failed to fetch public items';
+        try {
+            const errorBody = await response.json();
+            errorMessage = errorBody.error || errorMessage;
+        } catch (e) { /* Ignore JSON parsing errors */ }
+        throw new Error(errorMessage);
+    }
+
+    // Expect response format: { "items": [...] }
     return response.json();
 }
