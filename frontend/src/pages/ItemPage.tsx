@@ -1,26 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, Link as RouterLink } from 'react-router-dom'; // Import RouterLink
 import { getItem } from '../utils/api';
 import { Item } from '../types/item';
-import Map from '../components/Map';
+import Map from '../components/Map'; // Assuming Map is refactored
 
-/**
- * Page component for displaying the details of a specific hidden item.
- * It fetches item data based on the ID and secret key from the URL,
- * handles loading and error states, and renders the item's title,
- * description, image, and map location.
- */
+// MUI Imports
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardMedia from '@mui/material/CardMedia';
+
 export default function ItemPage() {
-    // Extract item ID from URL path parameters
     const { id } = useParams<{ id: string }>();
-    // Extract secret key from URL query parameters
     const [searchParams] = useSearchParams();
-    const secretKey = searchParams.get('key'); // The secret key required to view the item
+    const secretKey = searchParams.get('key');
 
-    // State variables
-    const [item, setItem] = useState<Item | null>(null); // Stores the fetched item data
-    const [error, setError] = useState<string | null>(null); // Stores any error message during fetch
-    const [isLoading, setIsLoading] = useState(true); // Tracks the loading state
+    const [item, setItem] = useState<Item | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Effect hook to fetch item data when the component mounts or id/secretKey changes
     useEffect(() => {
@@ -52,86 +53,90 @@ export default function ItemPage() {
         // Dependency array: Re-run the effect if id or secretKey changes
     }, [id, secretKey]);
 
-    // --- Conditional Rendering based on state ---
 
-    // Display loading indicator while fetching data
+    // --- MUI Conditional Rendering ---
+
+    // Loading State
     if (isLoading) {
         return (
-            <div className="container flex items-center justify-center" style={{ minHeight: '100vh' }}>
-                <div className="text-center">
-                    <div className="spinner"></div> {/* Simple CSS spinner */}
-                    <p className="mt-4 text-gray-600">Loading item details...</p>
-                </div>
-            </div>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+                <Box sx={{ textAlign: 'center' }}>
+                    <CircularProgress sx={{ mb: 2 }} />
+                    <Typography color="text.secondary">Loading item details...</Typography>
+                </Box>
+            </Box>
         );
     }
 
-    // Display error message if fetching failed or item is not found
+    // Error State
     if (error || !item) {
         return (
-            <div className="container flex items-center justify-center" style={{ minHeight: '100vh' }}>
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                        {error || 'Item not found'} {/* Show specific error or generic message */}
-                    </h2>
-                    <p className="text-gray-600 mb-6">
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', textAlign: 'center' }}>
+                <Box>
+                    <Typography variant="h5" component="h2" gutterBottom color="error">
+                        {error || 'Item not found'}
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ mb: 3 }}>
                         The item you're looking for might have been removed or the link is invalid.
-                    </p>
-                    <a
-                        href="/"
-                        className="btn btn-primary"
+                    </Typography>
+                    <Button
+                        component={RouterLink} // Use RouterLink for navigation
+                        to="/"
+                        variant="contained"
                     >
                         Go Home
-                    </a>
-                </div>
-            </div>
+                    </Button>
+                </Box>
+            </Box>
         );
     }
 
-    // --- Render Item Details ---
-    // This block renders only if loading is complete, there's no error, and item data exists.
+    // --- Render Item Details (MUI) ---
     return (
-        <div className="container py-6"> {/* Added padding */}
-            <div className="card">
+        // Container is provided by App.tsx, just return the Card
+        <Card>
+            <CardContent>
                 {/* Item Title */}
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                <Typography variant="h4" component="h1" gutterBottom>
                     {item.title}
-                </h1>
+                </Typography>
 
-                {/* Item Description - preserve whitespace */}
-                <p className="text-gray-600 mb-6" style={{ whiteSpace: 'pre-wrap' }}>
+                {/* Item Description */}
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3, whiteSpace: 'pre-wrap' }}>
                     {item.description}
-                </p>
+                </Typography>
 
-                {/* Item Image - responsive scaling */}
-                <div className="image-preview mb-4">
-                    <img
-                        src={item.image_url}
-                        alt={item.title}
-                        className="w-full h-auto object-contain rounded" // Ensure image scales and has rounded corners
-                    />
-                </div>
+                {/* Item Image */}
+                <CardMedia
+                    component="img"
+                    image={item.image_url}
+                    alt={item.title}
+                    sx={{
+                        width: '100%',
+                        maxHeight: 400, // Limit image height
+                        objectFit: 'contain', // Ensure whole image is visible
+                        borderRadius: 1, // Apply border radius
+                        mb: 3 // Margin below image
+                    }}
+                />
 
-                {/* Location Map - read-only */}
-                <div className="mb-6">
-                    {/* Location heading removed for cleaner UI */}
+                {/* Location Map */}
+                <Box sx={{ mb: 3 }}>
                     <Map
-                        location={{
-                            latitude: item.latitude,
-                            longitude: item.longitude
-                        }}
-                        readOnly // Prevent interaction on the view page
-                        className="w-full" // Ensure map takes full width
+                        location={{ latitude: item.latitude, longitude: item.longitude }}
+                        readOnly
+                    // Pass sx or className if Map component needs specific styling
+                    // sx={{ height: 300 }} // Example
                     />
-                </div>
+                </Box>
 
                 {/* Creation Date */}
-                <div className="text-sm text-gray-500 text-center"> {/* Centered text */}
-                    Hidden on {new Date(item.created_at).toLocaleDateString('en-CA', { // Use options for YYYY-MM-DD
+                <Typography variant="caption" color="text.secondary" align="center" component="div">
+                    Hidden on {new Date(item.created_at).toLocaleDateString('en-CA', {
                         year: 'numeric', month: '2-digit', day: '2-digit'
                     })}
-                </div>
-            </div>
-        </div>
+                </Typography>
+            </CardContent>
+        </Card>
     );
 }

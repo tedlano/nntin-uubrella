@@ -1,9 +1,9 @@
-# Development Guide for UUbrella
+# Development Guide for DropMapp
 
 This guide provides instructions for setting up the development environment, running the application locally, and deploying it to AWS.
 
 ## Technology Stack
-- **Frontend:** React + Vite, TypeScript, TailwindCSS, Leaflet
+- **Frontend:** React + Vite, TypeScript, Material UI (MUI), Leaflet
 - **Backend:** Python, AWS Lambda
 - **Infrastructure:** AWS CDK
 - **Storage:** S3, DynamoDB
@@ -69,7 +69,7 @@ The frontend should now be accessible, usually at `http://localhost:5173`. Note 
 
 ## Deployment to AWS
 
-Deploying UUbrella involves setting up the backend infrastructure (Lambda, API Gateway, S3, DynamoDB) and deploying the frontend code to be served via CloudFront.
+Deploying DropMapp involves setting up the backend infrastructure (Lambda, API Gateway, S3, DynamoDB) and deploying the frontend code to be served via CloudFront.
 
 ### Option 1: Using the Automated Deployment Script (Recommended)
 We've provided a deployment script (`deploy.sh`) that automates the entire process. This is the easiest way to get started.

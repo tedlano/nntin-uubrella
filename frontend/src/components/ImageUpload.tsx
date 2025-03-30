@@ -1,34 +1,28 @@
-import React, { useState, useRef, ChangeEvent, useEffect } from 'react';
+import React, { useState, useRef, ChangeEvent, useEffect, useCallback } from 'react';
 import imageCompression from 'browser-image-compression';
 
+// MUI Imports
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'; // Example Icon
+
 interface ImageUploadProps {
-    onImageSelect: (base64Image: string | null) => void; // Allow null for reset
-    className?: string;
-    resetTrigger?: number; // Prop to trigger reset from parent
+    onImageSelect: (base64Image: string | null) => void;
+    className?: string; // Keep for potential parent styling, though MUI preferred
+    resetTrigger?: number;
 }
 
-/**
- * Component for handling image uploads via file input or drag-and-drop.
- * Features include:
- * - Image preview
- * - File type validation (image/*)
- * - Client-side image compression using 'browser-image-compression'.
- * - Conversion to Base64 format for the `onImageSelect` callback.
- * - Drag and drop support.
- * - Loading indicator during compression.
- * - Error display.
- * - Reset functionality via prop.
- */
 export default function ImageUpload({
     onImageSelect,
-    className = '',
-    resetTrigger = 0 // Default value
+    className = '', // Keep className prop for now
+    resetTrigger = 0
 }: ImageUploadProps) {
-    const [preview, setPreview] = useState<string | null>(null); // State for the image preview URL
-    const [error, setError] = useState<string | null>(null);     // State for displaying errors
-    const [isLoading, setIsLoading] = useState(false);           // State for compression loading indicator
+    const [preview, setPreview] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const currentPreviewRef = useRef<string | null>(null); // Ref to track current preview for cleanup
+    const currentPreviewRef = useRef<string | null>(null);
 
     // Effect for resetting the component state when resetTrigger changes
     useEffect(() => {
@@ -54,7 +48,7 @@ export default function ImageUpload({
             // Revoke the *previous* object URL when the component unmounts or preview changes
             if (currentPreviewRef.current) {
                 URL.revokeObjectURL(currentPreviewRef.current);
-                console.log("Revoked Object URL:", currentPreviewRef.current); // For debugging
+                // console.log("Revoked Object URL:", currentPreviewRef.current); // For debugging
             }
         };
     }, [preview]); // Re-run when preview changes
@@ -86,9 +80,9 @@ export default function ImageUpload({
                 initialQuality: 0.7
             };
 
-            console.log("Compressing image..."); // Debug log
+            // console.log("Compressing image..."); // Debug log
             const compressedFile = await imageCompression(file, options);
-            console.log("Compression complete."); // Debug log
+            // console.log("Compression complete."); // Debug log
 
             // --- Preview and Callback ---
             const previewUrl = URL.createObjectURL(compressedFile);
@@ -103,18 +97,18 @@ export default function ImageUpload({
             reader.onerror = () => {
                 setError('Error reading compressed file.');
                 setIsLoading(false); // Stop loading on error
-                console.error('FileReader error');
+                // console.error('FileReader error');
             };
             reader.readAsDataURL(compressedFile);
 
         } catch (err) {
             setError('Error processing or compressing image');
             setIsLoading(false); // Stop loading on error
-            console.error('Error processing/compressing image:', err);
+            // console.error('Error processing/compressing image:', err);
         }
     };
 
-    const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
         event.stopPropagation();
         setError(null); // Clear error on drop
@@ -128,18 +122,33 @@ export default function ImageUpload({
             // Trigger the change event handler
             handleFileSelect({ target: fileInputRef.current } as ChangeEvent<HTMLInputElement>);
         }
-    };
+    }, [handleFileSelect]); // Add handleFileSelect dependency
 
     const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
         event.stopPropagation();
     };
 
+
+    // --- MUI Render Logic ---
     return (
-        <div className={className}>
-            <div
-                className={`image-upload relative border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-indigo-500 transition-colors ${error ? 'border-red-500' : ''} ${isLoading ? 'opacity-50 cursor-wait' : ''}`}
-                onClick={() => !isLoading && fileInputRef.current?.click()} // Prevent click when loading
+        <Box className={className}> {/* Outer Box */}
+            <Box
+                sx={{
+                    position: 'relative',
+                    border: `2px dashed ${error ? 'error.main' : 'grey.400'}`,
+                    borderRadius: 2, // MUI theme spacing unit * 2
+                    p: 3, // Padding using theme spacing
+                    textAlign: 'center',
+                    cursor: isLoading ? 'wait' : 'pointer',
+                    bgcolor: 'background.paper', // Use theme background
+                    transition: (theme) => theme.transitions.create('border-color'),
+                    '&:hover': {
+                        borderColor: isLoading ? undefined : 'primary.main', // Use theme primary color on hover
+                    },
+                    opacity: isLoading ? 0.7 : 1,
+                }}
+                onClick={() => !isLoading && fileInputRef.current?.click()}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 aria-disabled={isLoading}
@@ -147,49 +156,62 @@ export default function ImageUpload({
                 <input
                     type="file"
                     ref={fileInputRef}
-                    className="hidden"
+                    hidden // Use hidden attribute
                     accept="image/*"
                     capture="environment"
                     onChange={handleFileSelect}
-                    disabled={isLoading} // Disable input while loading
+                    disabled={isLoading}
                 />
 
                 {/* Loading Indicator Overlay */}
                 {isLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
-                        <div className="spinner"></div> {/* Simple CSS spinner */}
-                    </div>
+                    <Box sx={{
+                        position: 'absolute', inset: 0, display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                        bgcolor: 'rgba(255, 255, 255, 0.7)', // White overlay
+                        zIndex: 10 // Ensure it's above content
+                    }}>
+                        <CircularProgress />
+                    </Box>
                 )}
 
                 {/* Content Area */}
-                <div className={`relative z-0 ${isLoading ? 'invisible' : ''}`}> {/* Hide content visually when loading */}
+                <Box sx={{ position: 'relative', zIndex: 0, visibility: isLoading ? 'hidden' : 'visible' }}>
                     {preview ? (
-                        <div className="image-preview">
-                            <img
-                                src={preview}
-                                alt="Preview"
-                                className="max-h-48 w-auto mx-auto rounded" // Constrain preview size
-                            />
-                        </div>
+                        <Box
+                            component="img"
+                            src={preview}
+                            alt="Preview"
+                            sx={{
+                                maxHeight: 192, // approx 48 * 4 (theme spacing)
+                                width: 'auto',
+                                maxWidth: '100%', // Ensure it doesn't overflow container
+                                mx: 'auto',
+                                borderRadius: 1, // Match border radius
+                                display: 'block' // Prevent extra space below img
+                            }}
+                        />
                     ) : (
-                        <div className="upload-placeholder">
-                            {/* Placeholder SVG and text */}
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-12 h-12 text-gray-400 mx-auto">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <div className="mt-2 text-center">
-                                <span className="text-indigo-600 font-medium">Take or Upload Photo</span>
-                                <p className="text-sm text-gray-500 mt-1">Tap or Drag & Drop</p>
-                            </div>
-                        </div>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            <PhotoCameraIcon sx={{ fontSize: 48, color: 'grey.500', mb: 1 }} />
+                            <Typography variant="body1" component="span" sx={{ color: 'primary.main', fontWeight: 'medium' }}>
+                                Take or Upload Photo
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                Tap or Drag & Drop
+                            </Typography>
+                        </Box>
                     )}
-                </div>
-            </div>
+                </Box>
+            </Box>
 
-            {error && !isLoading && ( // Only show error if not loading
-                <p className="mt-2 text-sm text-red-600">{error}</p>
+            {error && !isLoading && (
+                <Typography color="error" variant="caption" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
+                    {error}
+                </Typography>
             )}
-        </div>
+        </Box>
     );
 }
+
+// NOTE: Remember to remove custom CSS classes like .spinner, .image-upload etc. from index.css later

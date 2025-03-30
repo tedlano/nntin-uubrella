@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
-// No longer importing Link as we use raw href in popup
 import { getPublicItems } from '../utils/api';
 import { PublicItemSummary } from '../types/item';
-// Removed Map component import as we initialize Leaflet directly here
 import 'leaflet/dist/leaflet.css';
 
-// Fix for marker icons (ensure this is done globally or here)
+// MUI Imports
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import Paper from '@mui/material/Paper'; // Use Paper for map container elevation
+
+// Fix for marker icons (remains the same)
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 let DefaultIcon = L.icon({
@@ -14,54 +19,32 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-
-// Optional: Define icons for different categories
-// import iconUmbrella from '../assets/icons/umbrella.png'; // Example
-// const categoryIcons = {
-//     "Community Umbrella": L.icon({ iconUrl: iconUmbrella, iconSize: [32, 32] }),
-//     // Add other category icons...
-//     "Default": L.Marker.prototype.options.icon // Use default Leaflet icon
-// };
-
-/**
- * Page component for displaying publicly shared items on a map.
- */
 export default function CommunityMapPage() {
     const [publicItems, setPublicItems] = useState<PublicItemSummary[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const mapRef = useRef<L.Map | null>(null); // Ref to hold the Leaflet map instance
-    const mapContainerRef = useRef<HTMLDivElement>(null); // Ref for the map container div
-    const markersRef = useRef<L.LayerGroup | null>(null); // Ref to hold marker layer group for easy clearing
+    const mapRef = useRef<L.Map | null>(null);
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    const markersRef = useRef<L.LayerGroup | null>(null);
 
-    // Effect to initialize the map instance
+    // Map initialization effect (logic remains the same)
     useEffect(() => {
-        // Ensure container exists and map isn't already initialized
         if (mapContainerRef.current && !mapRef.current) {
-            mapRef.current = L.map(mapContainerRef.current).setView([40.7128, -74.0060], 13); // Default view
+            mapRef.current = L.map(mapContainerRef.current).setView([40.7128, -74.0060], 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors'
             }).addTo(mapRef.current);
-
-            // Initialize marker layer group
             markersRef.current = L.layerGroup().addTo(mapRef.current);
         }
-
-        // Cleanup function to remove map on component unmount
         return () => {
-            if (mapRef.current) {
-                mapRef.current.remove();
-                mapRef.current = null;
-                markersRef.current = null; // Clear marker group ref
-            }
+            if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; markersRef.current = null; }
         };
-    }, []); // Empty dependency array ensures this runs only once on mount/unmount
+    }, []);
 
-    // Effect to fetch public items
+    // Fetch public items effect (logic remains the same)
     useEffect(() => {
         async function loadPublicItems() {
-            setIsLoading(true);
-            setError(null);
+            setIsLoading(true); setError(null);
             try {
                 const response = await getPublicItems();
                 setPublicItems(response.items);
@@ -73,69 +56,56 @@ export default function CommunityMapPage() {
             }
         }
         loadPublicItems();
-    }, []); // Fetch only once on mount
+    }, []);
 
-    // Effect to update markers when publicItems change or map is ready
+    // Update markers effect (logic remains the same, adjusted popup link)
     useEffect(() => {
-        // Ensure map and marker layer group exist
         if (mapRef.current && markersRef.current) {
             const markerLayer = markersRef.current;
-            // Clear existing markers before adding new ones
             markerLayer.clearLayers();
-
             if (publicItems.length > 0) {
-                console.log(`Adding ${publicItems.length} markers to the map.`);
                 publicItems.forEach(item => {
-                    // const icon = categoryIcons[item.category || "Default"] || categoryIcons["Default"]; // Get category icon or default
-                    const marker = L.marker([item.latitude, item.longitude] /*, { icon }*/);
-
-                    // Add popup with title, category, and link to item page
-                    // Using raw href as Link component doesn't work directly in Leaflet popups
+                    const marker = L.marker([item.latitude, item.longitude]);
+                    // Removed Tailwind classes from link
                     marker.bindPopup(`
                         <b>${item.title || 'Public Item'}</b><br>
                         ${item.category ? `Category: ${item.category}<br>` : ''}
-                        <a href="/items/${item.item_id}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">View Details</a>
+                        <a href="/items/${item.item_id}" target="_blank" rel="noopener noreferrer">View Details</a>
                     `);
-                    markerLayer.addLayer(marker); // Add marker to the layer group
+                    markerLayer.addLayer(marker);
                 });
-
-                // Optional: Fit map bounds to markers
-                // const bounds = L.latLngBounds(publicItems.map(item => [item.latitude, item.longitude]));
-                // if (bounds.isValid()) {
-                //    mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-                // }
             }
         }
-    }, [publicItems, mapRef.current]); // Re-run when items load or map instance changes
+    }, [publicItems, mapRef.current]); // mapRef.current dependency is okay here
 
-
-    // --- Render Logic ---
+    // --- MUI Render Logic ---
     return (
-        <div className="container py-6 space-y-4">
-            <h1 className="text-3xl font-bold text-gray-900 text-center">Community Map</h1>
-            <p className="text-lg text-gray-600 text-center">
+        <Box sx={{ py: 3 }}> {/* Use Box with padding */}
+            <Typography variant="h4" component="h1" align="center" gutterBottom>
+                Community Map
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary" align="center" sx={{ mb: 3 }}>
                 Discover publicly shared items and resources near you.
-            </p>
+            </Typography>
 
             {isLoading && (
-                <div className="text-center py-10">
-                    <div className="spinner"></div>
-                    <p className="mt-4 text-gray-600">Loading public items...</p>
-                </div>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 5 }}>
+                    <CircularProgress sx={{ mb: 2 }} />
+                    <Typography color="text.secondary">Loading public items...</Typography>
+                </Box>
             )}
 
             {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
-                    <strong className="font-bold">Error: </strong>
-                    <span className="block sm:inline">{error}</span>
-                </div>
+                <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
             )}
 
-            {/* Map Container Div */}
-            <div className="map-container h-[60vh] rounded-lg overflow-hidden shadow-lg">
-                {/* Attach ref to this div */}
-                <div id="community-map" ref={mapContainerRef} style={{ height: '100%', width: '100%' }}></div>
-            </div>
-        </div>
+            {/* Map Container */}
+            <Paper elevation={3} sx={{ height: '60vh', overflow: 'hidden', borderRadius: 2 }}>
+                {/* Attach ref to this inner Box */}
+                <Box id="community-map" ref={mapContainerRef} sx={{ height: '100%', width: '100%' }}></Box>
+            </Paper>
+        </Box>
     );
 }
+
+// NOTE: Remember to remove custom CSS classes like .spinner, .map-container from index.css later

@@ -1,8 +1,5 @@
 @import 'leaflet/dist/leaflet.css';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 /* Base styles */
 body {
@@ -10,282 +7,24 @@ body {
     margin: 0;
     padding: 0;
     min-height: 100vh;
-    background-color: #f9fafb;
-    color: #111827;
-}
-
-/* Container styles */
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 1rem;
-}
-
-/* Form styles */
-.form-group {
-    margin-bottom: 1rem;
-}
-
-.form-label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-}
-
-.form-input,
-.form-textarea {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.375rem;
-    font-size: 1rem;
-}
-
-.form-textarea {
-    min-height: 100px;
-}
-
-/* Button styles */
-.btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 0.375rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.btn-primary {
-    background-color: #4f46e5;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: #4338ca;
-}
-
-.btn-primary:disabled {
-    background-color: #818cf8;
-    cursor: not-allowed;
-}
-
-/* Card styles */
-.card {
-    background-color: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-
-/* Utility classes */
-.text-center {
-    text-align: center;
-}
-
-.mb-1 {
-    margin-bottom: 0.25rem;
-}
-
-.mb-2 {
-    margin-bottom: 0.5rem;
-}
-
-.mb-4 {
-    margin-bottom: 1rem;
-}
-
-.mb-6 {
-    margin-bottom: 1.5rem;
-}
-
-.mt-2 {
-    margin-top: 0.5rem;
-}
-
-.mt-4 {
-    margin-top: 1rem;
-}
-
-.flex {
-    display: flex;
-}
-
-.flex-col {
-    flex-direction: column;
-}
-
-.items-center {
-    align-items: center;
-}
-
-.justify-between {
-    justify-content: space-between;
-}
-
-.w-full {
-    width: 100%;
-}
-
-.text-sm {
-    font-size: 0.875rem;
-}
-
-.text-lg {
-    font-size: 1.125rem;
-}
-
-.text-xl {
-    font-size: 1.25rem;
-}
-
-.text-2xl {
-    font-size: 1.5rem;
-}
-
-.text-3xl {
-    font-size: 1.875rem;
-}
-
-.font-bold {
-    font-weight: 700;
-}
-
-.text-gray-500 {
-    color: #6b7280;
-}
-
-.text-gray-600 {
-    color: #4b5563;
-}
-
-.text-gray-900 {
-    color: #111827;
-}
-
-.text-red-600 {
-    color: #dc2626;
-}
-
-.bg-red-50 {
-    background-color: #fef2f2;
-}
-
-.rounded-lg {
-    border-radius: 0.5rem;
-}
-
-.p-4 {
-    padding: 1rem;
-}
-
-.p-6 {
-    padding: 1.5rem;
-}
-
-.py-2 {
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-}
-
-.px-4 {
-    padding-left: 1rem;
-    padding-right: 1rem;
-}
-
-.space-y-2>*+* {
-    margin-top: 0.5rem;
-}
-
-.space-y-6>*+* {
-    margin-top: 1.5rem;
+    /* background-color: #f9fafb; */
+    /* Let CssBaseline/Theme handle background */
+    /* color: #111827; */
+    /* Let CssBaseline/Theme handle text color */
 }
 
 /* Leaflet map styles */
 .leaflet-container {
     width: 100%;
     height: 100%;
-    min-height: 400px;
+    /* min-height: 400px; */
+    /* Height is now controlled by MUI Box sx prop */
     z-index: 1;
-    border-radius: 0.5rem;
-    border: 1px solid #e5e7eb;
+    /* Keep z-index */
+    /* border-radius: 0.5rem; */
+    /* Controlled by MUI Box sx prop */
+    /* border: 1px solid #e5e7eb; */
+    /* Controlled by MUI Box sx prop */
 }
 
-/* Image upload styles */
-.image-upload {
-    border: 2px dashed #d1d5db;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    cursor: pointer;
-    transition: border-color 0.2s;
-}
-
-.image-upload:hover {
-    border-color: #9ca3af;
-}
-
-.image-upload.error {
-    border-color: #ef4444;
-}
-
-.image-preview {
-    /* Removed fixed aspect-ratio to allow natural image height */
-    position: relative;
-    /* Keep relative for potential future absolute positioning needs within */
-}
-
-.image-preview img {
-    /* Removed absolute positioning, fixed height, and object-fit: cover */
-    /* Image sizing will now be controlled by classes on the img tag itself (e.g., w-full h-auto) */
-    display: block;
-    /* Ensure img behaves like a block element */
-    max-width: 100%;
-    /* Prevent image from exceeding container width */
-    border-radius: 0.375rem;
-}
-
-.upload-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem 0;
-}
-
-/* Success message styles */
-.success-message {
-    text-align: center;
-}
-
-.secret-url {
-    background-color: #f9fafb;
-    border-radius: 0.375rem;
-    padding: 1rem;
-    font-family: monospace;
-    word-break: break-all;
-    margin: 1.5rem 0;
-}
-
-/* Animation */
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
-.spinner {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 50%;
-    border: 2px solid;
-    border-color: #4f46e5 transparent #4f46e5 transparent;
-    animation: spin 1s linear infinite;
-    margin: 0 auto;
-}
+/* Removed redundant custom classes previously used with Tailwind */

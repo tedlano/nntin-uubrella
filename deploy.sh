@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Starting deployment process for UUbrella application..."
+echo "🚀 Starting deployment process for DropMapp application..."
 
 # Step 1: Build the frontend
 echo "📦 Building frontend..."

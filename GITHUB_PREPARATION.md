@@ -1,6 +1,6 @@
-# GitHub Preparation Plan for UUbrella Project
+# GitHub Preparation Plan for DropMapp Project
 
-This document outlines the steps needed to prepare the UUbrella project for uploading to GitHub.
+This document outlines the steps needed to prepare the DropMapp project for uploading to GitHub.
 
 ## 1. Create a `.gitignore` File
 
@@ -99,14 +99,14 @@ Follow these steps to initialize the Git repository and push to GitHub:
 3. Add and commit the rest of the files:
    ```bash
    git add .
-   git commit -m "Initial commit: UUbrella project"
+   git commit -m "Initial commit: DropMapp project"
    ```
 
 4. Create a new repository on GitHub (without initializing it with README, .gitignore, or license)
 
 5. Connect your local repository to the GitHub repository:
    ```bash
-   git remote add origin https://github.com/yourusername/uubrella.git
+   git remote add origin https://github.com/yourusername/dropmapp.git
    ```
 
 6. Push your code to GitHub:

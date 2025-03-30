@@ -1,25 +1,40 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom'; // Import RouterLink
 
-/**
- * Simple component displayed when no other route matches (404 Not Found).
- */
+// MUI Imports
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+
 export default function NotFoundPage() {
     return (
-        <div className="container flex items-center justify-center text-center" style={{ minHeight: '80vh' }}>
-            <div>
-                <h1 className="text-6xl font-bold text-gray-800 mb-4">404</h1>
-                <h2 className="text-2xl font-semibold text-gray-600 mb-6">Page Not Found</h2>
-                <p className="text-gray-500 mb-8">
+        <Box
+            sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                minHeight: '80vh' // Adjust height as needed
+            }}
+        >
+            <Box>
+                <Typography variant="h1" component="h1" sx={{ fontWeight: 'bold', mb: 2, fontSize: '6rem' }}> {/* Larger font size */}
+                    404
+                </Typography>
+                <Typography variant="h4" component="h2" color="text.secondary" sx={{ mb: 3 }}>
+                    Page Not Found
+                </Typography>
+                <Typography color="text.secondary" sx={{ mb: 4 }}>
                     Sorry, the page you are looking for does not exist or has been moved.
-                </p>
-                <Link
+                </Typography>
+                <Button
+                    component={RouterLink}
                     to="/"
-                    className="btn btn-primary"
+                    variant="contained"
                 >
                     Go Back Home
-                </Link>
-            </div>
-        </div>
+                </Button>
+            </Box>
+        </Box>
     );
 }

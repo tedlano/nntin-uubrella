@@ -1,10 +1,10 @@
-# UUbrella Application Architecture
+# DropMapp Application Architecture
 
-This document outlines the technical architecture of the UUbrella application.
+This document outlines the technical architecture of the DropMapp application.
 
 ## Overview
 
-UUbrella is a web application designed to allow users to "hide" items (represented by data like title, description, location, image) and share them either publicly or privately via a secret link. It follows a modern serverless architecture hosted on AWS, comprising a Single-Page Application (SPA) frontend and a serverless backend API.
+DropMapp is a web application designed to allow users to "hide" items (represented by data like title, description, location, image) and share them either publicly or privately via a secret link. It follows a modern serverless architecture hosted on AWS, comprising a Single-Page Application (SPA) frontend and a serverless backend API.
 
 ```mermaid
 graph TD
@@ -49,10 +49,10 @@ graph TD
 
 *   **Framework:** React with TypeScript.
 *   **Build Tool:** Vite.
-*   **Styling:** Tailwind CSS.
+*   **Styling:** Material UI (MUI).
 *   **Routing:** `react-router-dom` for client-side routing.
 *   **Key Components/Pages:**
-    *   `App.tsx`: Main application shell, routing setup, navigation (currently being refactored for side nav).
+    *   `App.tsx`: Main application shell, routing setup.
     *   `HomePage.tsx`: Landing page, likely includes the form to create/hide an item.
     *   `ItemPage.tsx`: Displays details of a specific item (fetched using ID and potentially a secret key).
     *   `CommunityMapPage.tsx`: Displays a map showing publicly shared items.
