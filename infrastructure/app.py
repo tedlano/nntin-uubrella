@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import os
 import aws_cdk as cdk
+from dotenv import load_dotenv # Import dotenv
 from infrastructure.infrastructure_stack import InfrastructureStack
 
+# Load environment variables from .env file
+load_dotenv()
 
 app = cdk.App()
 InfrastructureStack(
