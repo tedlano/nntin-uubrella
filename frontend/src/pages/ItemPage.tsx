@@ -18,28 +18,31 @@ export default function ItemPage() {
     const { id } = useParams<{ id: string }>();
     const [searchParams] = useSearchParams();
     const secretKey = searchParams.get('key');
+    const adminKey = searchParams.get('admin_key'); // Read admin_key
 
     const [item, setItem] = useState<Item | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-
-    // Effect hook to fetch item data when the component mounts or id/secretKey changes
+    // Effect hook to fetch item data when the component mounts or id/secretKey/adminKey changes
     useEffect(() => {
         // Define the async function to perform the fetch
         async function loadItem() {
-            // Basic validation: Ensure ID and key are present in the URL
-            if (!id || !secretKey) {
-                setError('Invalid URL parameters.');
+            // ID is still required
+            if (!id) {
+                setError('Invalid URL parameters. Missing ID.');
                 setIsLoading(false);
-                return; // Stop if parameters are missing
+                return; // Stop if ID is missing
             }
 
             // --- API Call ---
+            // Key check removed, backend will handle authorization
             try {
-                // Call the API utility function to fetch item data
-                const itemData = await getItem(id, secretKey);
+                // Pass the appropriate key to the API call
+                // We'll update the getItem function signature next
+                const itemData = await getItem(id, secretKey, adminKey);
                 setItem(itemData); // Store the fetched data in state
             } catch (err) {
+                // --- Error Handling ---
                 // --- Error Handling ---
                 setError(err instanceof Error ? err.message : 'Failed to load item');
             } finally {
@@ -97,8 +100,16 @@ export default function ItemPage() {
         <Card>
             <CardContent>
                 {/* Item Title */}
-                <Typography variant="h4" component="h1" gutterBottom>
+                <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0.5 }}> {/* Reduced bottom margin */}
                     {item.title}
+                </Typography>
+
+                {/* Creation Date & Time (Moved) */}
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 2 }}> {/* Added bottom margin */}
+                    Hidden on {new Date(item.created_at + 'Z').toLocaleString(undefined, { // Append 'Z' to ensure UTC parsing
+                        year: 'numeric', month: 'long', day: 'numeric',
+                        hour: 'numeric', minute: '2-digit' // Simplified options slightly
+                    })}
                 </Typography>
 
                 {/* Item Description */}
@@ -130,12 +141,7 @@ export default function ItemPage() {
                     />
                 </Box>
 
-                {/* Creation Date */}
-                <Typography variant="caption" color="text.secondary" align="center" component="div">
-                    Hidden on {new Date(item.created_at).toLocaleDateString('en-CA', {
-                        year: 'numeric', month: '2-digit', day: '2-digit'
-                    })}
-                </Typography>
+                {/* Redundant Creation Date removed */}
             </CardContent>
         </Card>
     );

@@ -1,22 +1,29 @@
 import React, { useState, useRef, ChangeEvent, useEffect, useCallback } from 'react';
 import imageCompression from 'browser-image-compression';
+// import EXIF from 'exif-js'; // Removed exif-js import
+import exifr from 'exifr'; // Import exifr
+import { Location } from '../types/item'; // Import Location type
 
 // MUI Imports
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
-import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'; // Example Icon
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 
 interface ImageUploadProps {
     onImageSelect: (base64Image: string | null) => void;
-    className?: string; // Keep for potential parent styling, though MUI preferred
+    className?: string;
     resetTrigger?: number;
+    onGpsDataFound?: (location: Location) => void;
 }
+
+// Removed the DMS to DD conversion function as exifr.gps() returns decimal degrees directly
 
 export default function ImageUpload({
     onImageSelect,
-    className = '', // Keep className prop for now
-    resetTrigger = 0
+    className = '',
+    resetTrigger = 0,
+    onGpsDataFound
 }: ImageUploadProps) {
     const [preview, setPreview] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -24,53 +31,68 @@ export default function ImageUpload({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const currentPreviewRef = useRef<string | null>(null);
 
-    // Effect for resetting the component state when resetTrigger changes
+    // Effect for resetting the component state
     useEffect(() => {
-        if (resetTrigger > 0) { // Trigger on change (assuming parent increments it)
+        if (resetTrigger > 0) {
             setPreview(null);
             setError(null);
             setIsLoading(false);
-            onImageSelect(null); // Notify parent that image is cleared
-            // Clear the file input value
+            onImageSelect(null);
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
         }
-    }, [resetTrigger, onImageSelect]); // Include onImageSelect in dependencies
+    }, [resetTrigger, onImageSelect]);
 
     // Effect for cleaning up the object URL
     useEffect(() => {
-        // Store the current preview URL in the ref whenever it changes
         currentPreviewRef.current = preview;
-
-        // Return a cleanup function
         return () => {
-            // Revoke the *previous* object URL when the component unmounts or preview changes
             if (currentPreviewRef.current) {
                 URL.revokeObjectURL(currentPreviewRef.current);
-                // console.log("Revoked Object URL:", currentPreviewRef.current); // For debugging
             }
         };
-    }, [preview]); // Re-run when preview changes
+    }, [preview]);
 
     const handleFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        // Reset states on new selection
         setError(null);
-        setPreview(null); // Clear previous preview immediately
-        setIsLoading(false); // Reset loading state
-        onImageSelect(null); // Clear parent state
+        setPreview(null);
+        setIsLoading(false);
+        onImageSelect(null);
 
         if (!file) return;
 
-        // Validate file type
         if (!file.type.startsWith('image/')) {
             setError('Please select an image file');
             return;
         }
 
+        // --- Attempt to read GPS Data using exifr BEFORE compression ---
+        console.log("Attempting to read GPS data using exifr..."); // Updated log
+        if (onGpsDataFound) {
+            try {
+                const gpsData = await exifr.gps(file); // Use exifr.gps()
+                console.log("exifr GPS Data:", gpsData); // Added log
+
+                if (gpsData && typeof gpsData.latitude === 'number' && typeof gpsData.longitude === 'number') {
+                    console.log("Valid GPS data found, calling onGpsDataFound..."); // Added log
+                    onGpsDataFound({ latitude: gpsData.latitude, longitude: gpsData.longitude });
+                } else {
+                    console.log("No valid GPS data found by exifr."); // Added log
+                }
+            } catch (exifError) {
+                console.error("Error reading GPS data with exifr:", exifError);
+                // Don't block the rest of the process if EXIF fails
+            }
+        } else {
+            console.log("onGpsDataFound prop not provided.");
+        }
+        // --- End GPS Data Reading ---
+
+
         try {
-            setIsLoading(true); // Start loading indicator
+            setIsLoading(true);
 
             // --- Image Compression ---
             const options = {
@@ -80,49 +102,46 @@ export default function ImageUpload({
                 initialQuality: 0.7
             };
 
-            // console.log("Compressing image..."); // Debug log
             const compressedFile = await imageCompression(file, options);
-            // console.log("Compression complete."); // Debug log
 
             // --- Preview and Callback ---
             const previewUrl = URL.createObjectURL(compressedFile);
-            setPreview(previewUrl); // Set new preview
+            setPreview(previewUrl);
 
             const reader = new FileReader();
             reader.onloadend = () => {
                 const base64String = reader.result as string;
-                onImageSelect(base64String); // Pass Base64 to parent
-                setIsLoading(false); // Stop loading indicator after success
+                onImageSelect(base64String);
+                setIsLoading(false);
             };
             reader.onerror = () => {
                 setError('Error reading compressed file.');
-                setIsLoading(false); // Stop loading on error
-                // console.error('FileReader error');
+                setIsLoading(false);
             };
             reader.readAsDataURL(compressedFile);
 
         } catch (err) {
             setError('Error processing or compressing image');
-            setIsLoading(false); // Stop loading on error
-            // console.error('Error processing/compressing image:', err);
+            setIsLoading(false);
         }
     };
 
-    const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    const handleDrop = useCallback(async (event: React.DragEvent<HTMLDivElement>) => { // Make async
         event.preventDefault();
         event.stopPropagation();
-        setError(null); // Clear error on drop
-        setIsLoading(false); // Reset loading
+        setError(null);
+        setIsLoading(false);
 
         const file = event.dataTransfer.files?.[0];
         if (file && fileInputRef.current) {
+            // Simulate file selection for handleFileSelect
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
             fileInputRef.current.files = dataTransfer.files;
-            // Trigger the change event handler
-            handleFileSelect({ target: fileInputRef.current } as ChangeEvent<HTMLInputElement>);
+            // Directly call handleFileSelect as it's now async
+            await handleFileSelect({ target: fileInputRef.current } as ChangeEvent<HTMLInputElement>);
         }
-    }, [handleFileSelect]); // Add handleFileSelect dependency
+    }, [handleFileSelect]); // handleFileSelect dependency
 
     const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
@@ -132,19 +151,19 @@ export default function ImageUpload({
 
     // --- MUI Render Logic ---
     return (
-        <Box className={className}> {/* Outer Box */}
+        <Box className={className}>
             <Box
                 sx={{
                     position: 'relative',
                     border: `2px dashed ${error ? 'error.main' : 'grey.400'}`,
-                    borderRadius: 2, // MUI theme spacing unit * 2
-                    p: 3, // Padding using theme spacing
+                    borderRadius: 2,
+                    p: 3,
                     textAlign: 'center',
                     cursor: isLoading ? 'wait' : 'pointer',
-                    bgcolor: 'background.paper', // Use theme background
+                    bgcolor: 'background.paper',
                     transition: (theme) => theme.transitions.create('border-color'),
                     '&:hover': {
-                        borderColor: isLoading ? undefined : 'primary.main', // Use theme primary color on hover
+                        borderColor: isLoading ? undefined : 'primary.main',
                     },
                     opacity: isLoading ? 0.7 : 1,
                 }}
@@ -156,26 +175,23 @@ export default function ImageUpload({
                 <input
                     type="file"
                     ref={fileInputRef}
-                    hidden // Use hidden attribute
+                    hidden
                     accept="image/*"
-                    capture="environment"
                     onChange={handleFileSelect}
                     disabled={isLoading}
                 />
 
-                {/* Loading Indicator Overlay */}
                 {isLoading && (
                     <Box sx={{
                         position: 'absolute', inset: 0, display: 'flex',
                         alignItems: 'center', justifyContent: 'center',
-                        bgcolor: 'rgba(255, 255, 255, 0.7)', // White overlay
-                        zIndex: 10 // Ensure it's above content
+                        bgcolor: 'rgba(255, 255, 255, 0.7)',
+                        zIndex: 10
                     }}>
                         <CircularProgress />
                     </Box>
                 )}
 
-                {/* Content Area */}
                 <Box sx={{ position: 'relative', zIndex: 0, visibility: isLoading ? 'hidden' : 'visible' }}>
                     {preview ? (
                         <Box
@@ -183,12 +199,12 @@ export default function ImageUpload({
                             src={preview}
                             alt="Preview"
                             sx={{
-                                maxHeight: 192, // approx 48 * 4 (theme spacing)
+                                maxHeight: 192,
                                 width: 'auto',
-                                maxWidth: '100%', // Ensure it doesn't overflow container
+                                maxWidth: '100%',
                                 mx: 'auto',
-                                borderRadius: 1, // Match border radius
-                                display: 'block' // Prevent extra space below img
+                                borderRadius: 1,
+                                display: 'block'
                             }}
                         />
                     ) : (
@@ -213,5 +229,3 @@ export default function ImageUpload({
         </Box>
     );
 }
-
-// NOTE: Remember to remove custom CSS classes like .spinner, .image-upload etc. from index.css later

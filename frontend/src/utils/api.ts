@@ -3,6 +3,7 @@ import {
   CreateItemResponse,
   Item,
   PublicItemSummary,
+  Location, // Added Location type import
 } from "../types/item"; // Added PublicItemSummary
 
 // Determine the API base URL from environment variables (set during build/deployment)
@@ -47,17 +48,29 @@ export async function createItem(
  * @param secretKey - The secret key (only required and checked by backend for private items).
  * @returns A promise that resolves with the full item details.
  * @throws An error if the API request fails, the item is not found, or the key is invalid/missing for a private item.
+ * @param adminKey - The admin key (optional, used for admin access).
+ * @returns A promise that resolves with the full item details.
+ * @throws An error if the API request fails, the item is not found, or the key is invalid/missing for a private item.
  */
 export async function getItem(
   itemId: string,
-  secretKey?: string,
+  secretKey?: string | null, // Allow null
+  adminKey?: string | null, // Add optional adminKey, allow null
 ): Promise<Item> {
-  // Made secretKey optional here
-  // Construct URL, conditionally add key parameter if provided
+  // Construct URL, conditionally add key or admin_key parameter
   let url = `${API_BASE_URL}/items/${itemId}`;
+  const params = new URLSearchParams();
   if (secretKey) {
-    url += `?key=${encodeURIComponent(secretKey)}`; // Ensure key is URL encoded
+    params.append('key', secretKey);
+  } else if (adminKey) {
+    // Only add admin_key if secretKey is not present
+    params.append('admin_key', adminKey);
   }
+  const queryString = params.toString();
+  if (queryString) {
+    url += `?${queryString}`;
+  }
+
 
   const response = await fetch(url, {
     method: "GET",
@@ -197,4 +210,89 @@ export async function deleteItem(
 
   // DELETE requests often return 200/204 No Content on success, no body needed
   return;
+}
+
+
+/**
+ * Searches for a location using the OpenStreetMap Nominatim API.
+ * Attempts structured search for US zip codes, falls back to free-form search.
+ * Optionally biases results towards a given location hint.
+ * @param query - The address, place name, or zip code to search for.
+ * @param locationHint - Optional user location {latitude, longitude} to bias search results.
+ * @returns A promise that resolves with the Location (lat, lon) or null if not found.
+ * @throws An error if the API request fails.
+ */
+export async function searchLocation(
+  query: string,
+  locationHint?: Location | null // Add optional location hint parameter
+): Promise<Location | null> {
+  const trimmedQuery = query.trim();
+  const params = new URLSearchParams({
+    format: 'json',
+    limit: '1',
+  });
+
+  // Basic check for US zip code (5 digits, optional -4)
+  const usZipRegex = /^\d{5}(-\d{4})?$/;
+  if (usZipRegex.test(trimmedQuery)) {
+    // Use structured query for zip code
+    params.set('postalcode', trimmedQuery);
+    params.set('countrycodes', 'us'); // Bias towards US for zip codes
+    console.log("Using structured zip code search");
+  } else {
+    // Use free-form query for other searches
+    params.set('q', trimmedQuery);
+    console.log("Using free-form search");
+  }
+
+  // Add viewbox bias if locationHint is provided
+  if (locationHint) {
+    // Define a bounding box size (e.g., 0.5 degrees latitude/longitude, adjust as needed)
+    const viewBoxSize = 0.5;
+    const left = locationHint.longitude - viewBoxSize / 2;
+    const top = locationHint.latitude + viewBoxSize / 2;
+    const right = locationHint.longitude + viewBoxSize / 2;
+    const bottom = locationHint.latitude - viewBoxSize / 2;
+    // Format: left,top,right,bottom
+    params.set('viewbox', `${left},${top},${right},${bottom}`);
+    params.set('bounded', '1'); // Ensure results are within the viewbox
+    console.log(`Adding viewbox bias: ${params.get('viewbox')}`);
+  }
+
+  const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
+  console.log("Nominatim URL:", url);
+
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        // Nominatim requires a User-Agent, but browsers usually handle this.
+        // If running server-side, you might need: 'User-Agent': 'YourAppName/1.0 (your-contact-email@example.com)'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Nominatim API request failed with status ${response.status}`);
+    }
+
+    const results = await response.json();
+
+    if (results && results.length > 0) {
+      const firstResult = results[0];
+      // Ensure lat and lon are numbers before returning
+      const lat = parseFloat(firstResult.lat);
+      const lon = parseFloat(firstResult.lon);
+      if (!isNaN(lat) && !isNaN(lon)) {
+        return { latitude: lat, longitude: lon };
+      }
+    }
+
+    return null; // No results found or invalid data
+  } catch (error) {
+    console.error("Error searching location with Nominatim:", error);
+    // Re-throw a more generic error for the UI
+    throw new Error("Failed to search for location. Please try again.");
+  }
 }

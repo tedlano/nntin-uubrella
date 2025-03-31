@@ -20,6 +20,7 @@ dynamodb = boto3.resource("dynamodb")
 # --- Environment Variables ---
 try:
     DYNAMODB_TABLE_NAME = os.environ["DYNAMODB_TABLE"]
+    ADMIN_KEY = os.environ["ADMIN_KEY"] # Read the admin key
 except KeyError as e:
     logger.critical(f"Missing required environment variable: {e}")
     raise Exception(f"Configuration error: Missing environment variable {e}") from e
@@ -83,8 +84,26 @@ def handler(event, context):
         # Determine visibility, defaulting to PRIVATE if somehow missing
         visibility = item.get("visibility", VISIBILITY_PRIVATE).upper()
 
-        # 4. Handle Authorization based on Visibility
-        if visibility == VISIBILITY_PUBLIC:
+        # 4. Handle Authorization: Check for Admin Key Override FIRST
+        query_params = event.get("queryStringParameters", {}) or {}
+        provided_admin_key = query_params.get("admin_key")
+        admin_access_granted = False
+
+        if provided_admin_key and ADMIN_KEY:
+            # Use hmac.compare_digest for timing-attack resistance
+            if hmac.compare_digest(provided_admin_key.encode('utf-8'), ADMIN_KEY.encode('utf-8')):
+                logger.info(f"Valid admin_key provided for item {item_id}. Granting admin access.")
+                admin_access_granted = True
+            else:
+                # Log invalid admin key attempt but don't fail the request yet,
+                # let the normal key check proceed if applicable.
+                logger.warning(f"Invalid admin_key provided for item {item_id}.")
+
+        # 5. Handle Authorization based on Visibility (if admin access not granted)
+        if admin_access_granted:
+            # Skip normal checks if admin access was granted
+            pass
+        elif visibility == VISIBILITY_PUBLIC:
             logger.info(f"Item {item_id} is PUBLIC. Access granted.")
             # Public items don't require key check
 

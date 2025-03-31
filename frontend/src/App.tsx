@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Routes, Route, Link as RouterLink } from 'react-router-dom'; // Import RouterLink
+import { Routes, Route, Link as RouterLink } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import AppBar from '@mui/material/AppBar';
@@ -8,12 +8,12 @@ import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import MenuIcon from '@mui/icons-material/Menu';
-// Removed unused MUI Link import
 
 import HomePage from './pages/HomePage';
 import ItemPage from './pages/ItemPage';
 import NotFoundPage from './pages/NotFoundPage';
 import CommunityMapPage from './pages/CommunityMapPage';
+import AdminPage from './pages/AdminPage'; // Import AdminPage
 
 function App() {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -34,7 +34,7 @@ function App() {
                 <Container maxWidth="lg">
                     <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
                         {/* Logo wrapped in Link */}
-                        <RouterLink to="/" style={{ textDecoration: 'none', display: 'inline-block' }}> {/* Wrap logo */}
+                        <RouterLink to="/" style={{ textDecoration: 'none', display: 'inline-block' }}>
                             <Box
                                 component="img"
                                 src="/images/logo-inline.png"
@@ -43,7 +43,7 @@ function App() {
                                     height: 'auto',
                                     maxWidth: { xs: '7rem', sm: '8rem', md: '10rem' },
                                     py: 1,
-                                    display: 'block', // Ensure image behaves correctly within link
+                                    display: 'block',
                                 }}
                             />
                         </RouterLink>
@@ -84,6 +84,10 @@ function App() {
                             <MenuItem onClick={handleMenuClose} component={RouterLink} to="/community-map">
                                 Community Map
                             </MenuItem>
+                            {/* Add Admin link - consider hiding this later */}
+                            <MenuItem onClick={handleMenuClose} component={RouterLink} to="/admin">
+                                Admin Panel
+                            </MenuItem>
                         </Menu>
                     </Toolbar>
                 </Container>
@@ -95,6 +99,7 @@ function App() {
                     <Route path="/" element={<HomePage />} />
                     <Route path="/items/:id" element={<ItemPage />} />
                     <Route path="/community-map" element={<CommunityMapPage />} />
+                    <Route path="/admin" element={<AdminPage />} /> {/* Add Admin Route */}
                     <Route path="*" element={<NotFoundPage />} />
                 </Routes>
             </Container>

@@ -122,7 +122,10 @@ class InfrastructureStack(Stack):
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="get_item.handler",
             code=lambda_.Code.from_asset("../backend/functions/get_item"),
-            environment=lambda_environment,
+            environment={ # Add ADMIN_KEY here
+                **lambda_environment,
+                "ADMIN_KEY": admin_key
+            },
         )
 
         # Lambda function for getting ALL items (admin only)

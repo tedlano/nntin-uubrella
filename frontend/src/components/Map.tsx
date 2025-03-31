@@ -1,52 +1,50 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react'; // Removed useState
 import L from 'leaflet';
 import { Location } from '../types/item';
 import 'leaflet/dist/leaflet.css';
 
 // MUI Imports
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
+// Removed Button, Typography, CircularProgress, Alert
 import Stack from '@mui/material/Stack';
-import MyLocationIcon from '@mui/icons-material/MyLocation'; // Geolocation Icon
+// Removed MyLocationIcon
 
-// Fix for marker icons (remains the same)
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41],
-    iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+// Define custom icon (no shadow, slightly larger)
+let CustomIcon = L.icon({
+    iconUrl: '/images/favicon.png', // Path relative to public folder
+    // shadowUrl: iconShadow, // Removed shadow
+    iconSize: [36, 36], // Increased size slightly from [32, 32]
+    iconAnchor: [18, 36], // Adjusted anchor to bottom center [width/2, height]
+    popupAnchor: [0, -36], // Adjusted popup anchor relative to iconAnchor
+    // shadowSize: [41, 41] // Removed shadow size
 });
-L.Marker.prototype.options.icon = DefaultIcon;
 
 interface MapProps {
     location?: Location | null;
     onLocationSelect?: (location: Location | null) => void;
     readOnly?: boolean;
-    className?: string; // Keep for potential parent styling if needed
+    viewCenter?: Location | null; // New prop to control map view center
+    className?: string;
 }
 
 const DEFAULT_CENTER: L.LatLngTuple = [40.7128, -74.0060];
 const DEFAULT_ZOOM = 13;
 const SELECTED_ZOOM = 18;
-const GEOLOCATION_TIMEOUT = 10000;
+// Removed GEOLOCATION_TIMEOUT
 
 export default function Map({
     location,
     onLocationSelect,
     readOnly = false,
-    className = '' // Keep className prop
+    viewCenter, // Destructure the new prop here
+    className = ''
 }: MapProps) {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<L.Map | null>(null);
     const markerRef = useRef<L.Marker | null>(null);
-    const [isGettingLocation, setIsGettingLocation] = useState(false);
-    const [locationError, setLocationError] = useState<string | null>(null);
+    // Removed isGettingLocation and locationError state
 
-    // Map initialization effect (logic remains the same)
+    // Map initialization effect
     useEffect(() => {
         if (!mapRef.current && mapContainerRef.current) {
             const initialView: L.LatLngTuple = location ? [location.latitude, location.longitude] : DEFAULT_CENTER;
@@ -62,16 +60,24 @@ export default function Map({
                 });
             }
         }
-        // Marker update logic (remains the same)
+        // Marker update logic
         if (mapRef.current) {
             if (location) {
                 const latLng: L.LatLngTuple = [location.latitude, location.longitude];
                 if (markerRef.current) {
+                    // If marker exists, update position and ensure icon is correct
                     markerRef.current.setLatLng(latLng);
+                    if (markerRef.current.options.icon !== CustomIcon) {
+                        markerRef.current.setIcon(CustomIcon);
+                    }
                 } else {
-                    markerRef.current = L.marker(latLng).addTo(mapRef.current);
+                    // Create marker explicitly with the custom icon
+                    markerRef.current = L.marker(latLng, { icon: CustomIcon }).addTo(mapRef.current);
                 }
-                mapRef.current.setView(latLng, SELECTED_ZOOM);
+                // Only set view based on marker if viewCenter isn't controlling it
+                if (!viewCenter) {
+                    mapRef.current.setView(latLng, SELECTED_ZOOM);
+                }
             } else {
                 if (markerRef.current) {
                     markerRef.current.remove();
@@ -79,87 +85,45 @@ export default function Map({
                 }
             }
         }
-    }, [location, readOnly, onLocationSelect]);
+    }, [location, readOnly, onLocationSelect, viewCenter]); // Added viewCenter dependency
 
-    // Cleanup effect (remains the same)
+    // Effect to handle programmatic view changes via viewCenter prop
+    useEffect(() => {
+        if (mapRef.current && viewCenter) {
+            const newCenter: L.LatLngTuple = [viewCenter.latitude, viewCenter.longitude];
+            // Use setView for immediate change instead of flyTo animation
+            // mapRef.current.flyTo(newCenter, SELECTED_ZOOM);
+            mapRef.current.setView(newCenter, SELECTED_ZOOM);
+        }
+    }, [viewCenter]); // Re-run only when viewCenter changes
+
+    // Cleanup effect
     useEffect(() => {
         return () => {
             if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
         };
     }, []);
 
-    // Geolocation handler (logic remains the same)
-    const handleGetCurrentLocation = useCallback(() => {
-        setIsGettingLocation(true);
-        setLocationError(null);
-        if (!navigator.geolocation) {
-            setLocationError('Geolocation is not supported by your browser');
-            setIsGettingLocation(false); return;
-        }
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                onLocationSelect?.({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-                setIsGettingLocation(false);
-            },
-            (error) => {
-                let errorMessage = 'Failed to get your location';
-                switch (error.code) {
-                    case error.PERMISSION_DENIED:
-                        errorMessage = 'Location permission denied';
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        errorMessage = 'Location information is unavailable';
-                        break;
-                    case error.TIMEOUT:
-                        errorMessage = 'Location request timed out';
-                        break;
-                }
-                setLocationError(errorMessage);
-                setIsGettingLocation(false);
-            },
-            { enableHighAccuracy: true, timeout: GEOLOCATION_TIMEOUT }
-        );
-    }, [onLocationSelect]); // Added dependency
+    // Removed Geolocation handler (handleGetCurrentLocation)
 
     // --- MUI Render Logic ---
     return (
-        <Stack spacing={1} className={className}> {/* Use Stack for spacing */}
-            {/* Geolocation Button and Error Display */}
-            {!readOnly && (
-                <Box>
-                    <Button
-                        variant="outlined" // Secondary style
-                        onClick={handleGetCurrentLocation}
-                        disabled={isGettingLocation}
-                        startIcon={isGettingLocation ? <CircularProgress size={20} /> : <MyLocationIcon />}
-                        size="small" // Make button smaller
-                    >
-                        {isGettingLocation ? 'Getting Location...' : 'Use Current Location'}
-                    </Button>
-                    {locationError && (
-                        <Alert severity="warning" sx={{ mt: 1 }} variant="outlined"> {/* Use Alert for errors */}
-                            {locationError}
-                        </Alert>
-                    )}
-                </Box>
-            )}
+        <Stack spacing={1} className={className}>
+            {/* Removed Geolocation Button and Error Display */}
 
             {/* Map Container Box */}
             <Box
                 id="map"
                 ref={mapContainerRef}
                 sx={{
-                    height: 250, // Set height via sx
+                    height: 250,
                     width: '100%',
-                    borderRadius: 1, // Use theme border radius
-                    border: '1px solid', // Add border
-                    borderColor: 'grey.300', // Use theme color
-                    zIndex: 1 // Ensure map is interactive
-                    // className prop can still be used by parent if needed for more complex layout
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'grey.300',
+                    zIndex: 1
                 }}
             />
         </Stack>
     );
 }
-
-// NOTE: Remember to remove custom CSS classes like .btn, .btn-secondary, .spinner-sm from index.css later

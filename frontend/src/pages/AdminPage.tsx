@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom"; // Import useSearchParams
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { getAllItems, deleteItem } from "../utils/api";
 import { Item } from "../types/item";
+import { DataGrid, GridColDef, GridToolbar, GridRowSelectionModel } from '@mui/x-data-grid'; // Import DataGrid components
 
 // MUI Imports
 import Container from "@mui/material/Container";
@@ -9,13 +10,7 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import Paper from "@mui/material/Paper";
+// Removed Table imports: Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
@@ -24,19 +19,20 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import Button from "@mui/material/Button";
-import Checkbox from "@mui/material/Checkbox"; // Import Checkbox
+// Removed Checkbox import as DataGrid handles it
 
 // MUI Icons
 import DeleteIcon from "@mui/icons-material/Delete";
-import LinkIcon from "@mui/icons-material/Link"; // For linking to item page
+// Removed LinkIcon as row click handles navigation
+// Removed Map import if not used elsewhere on this page
 
 /**
- * Admin page component for viewing and managing all hidden items.
+ * Admin page component for viewing and managing all hidden items using DataGrid.
  * Requires an 'admin_key' query parameter in the URL for authorization.
  */
 export default function AdminPage() {
   const [items, setItems] = useState<Item[]>([]); // List of all items fetched
-  const [selectedItems, setSelectedItems] = useState<string[]>([]); // IDs of items selected for bulk actions
+  const [selectedItems, setSelectedItems] = useState<GridRowSelectionModel>([]); // Use GridRowSelectionModel (string[] or number[])
   const [isLoading, setIsLoading] = useState(true); // Loading state for fetching items
   const [error, setError] = useState<string | null>(null); // Error message during item fetch
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null); // ID of the item currently targeted for single deletion confirmation
@@ -48,6 +44,7 @@ export default function AdminPage() {
 
   // Get admin_key from URL query parameters
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const adminKey = searchParams.get("admin_key");
 
   const fetchItems = useCallback(async () => {
@@ -62,24 +59,21 @@ export default function AdminPage() {
     setError(null);
     try {
       const response = await getAllItems(adminKey); // Pass adminKey
-      // Sort items by creation date, newest first
-      const sortedItems = response.items.sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
-      setItems(sortedItems);
+      // No need for manual sorting here, DataGrid handles it
+      setItems(response.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load items");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [adminKey]); // Dependency is just adminKey now
 
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
 
-  const handleDeleteClick = (itemId: string) => {
+  const handleDeleteClick = (event: React.MouseEvent, itemId: string) => {
+    event.stopPropagation(); // Prevent row click navigation when clicking delete
     setDeleteItemId(itemId);
     setDeleteError(null); // Clear previous delete error
   };
@@ -89,17 +83,13 @@ export default function AdminPage() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!deleteItemId) return;
-    if (!adminKey) {
-      // Also check for adminKey here
-      setDeleteError("Admin key is missing from URL. Cannot delete item.");
-      return;
-    }
+    if (!deleteItemId || !adminKey) return; // Simplified check
+
     setIsDeleting(true);
     setDeleteError(null);
     try {
       await deleteItem(deleteItemId, adminKey); // Pass adminKey
-      // Remove item from local state after successful deletion
+      // DataGrid will update automatically if 'items' state changes
       setItems((prevItems) =>
         prevItems.filter((item) => item.item_id !== deleteItemId),
       );
@@ -113,56 +103,7 @@ export default function AdminPage() {
     }
   };
 
-  // --- Selection Handlers ---
-  /**
-   * Handles the click event on the 'select all' checkbox in the table header.
-   * Selects or deselects all items based on the checkbox state.
-   */
-  const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
-      const newSelecteds = items.map((n) => n.item_id);
-      setSelectedItems(newSelecteds);
-      return;
-    }
-    setSelectedItems([]);
-  };
-
-  /**
-   * Handles the click event on an individual row's checkbox or the row itself.
-   * Toggles the selection state of the clicked item.
-   */
-  const handleSelectOneClick = (
-    event: React.ChangeEvent<HTMLInputElement>, // Keep original type, casting done at call site
-    id: string,
-  ) => {
-    const selectedIndex = selectedItems.indexOf(id);
-    let newSelected: string[] = [];
-
-    if (selectedIndex === -1) {
-      newSelected = newSelected.concat(selectedItems, id);
-    } else if (selectedIndex === 0) {
-      newSelected = newSelected.concat(selectedItems.slice(1));
-    } else if (selectedIndex === selectedItems.length - 1) {
-      newSelected = newSelected.concat(selectedItems.slice(0, -1));
-    } else if (selectedIndex > 0) {
-      newSelected = newSelected.concat(
-        selectedItems.slice(0, selectedIndex),
-        selectedItems.slice(selectedIndex + 1),
-      );
-    }
-    setSelectedItems(newSelected);
-  };
-
-  /** Checks if a given item ID is currently selected. */
-  const isSelected = (id: string) => selectedItems.indexOf(id) !== -1;
-  // --- End Selection Handlers ---
-
   // --- Bulk Delete Handler ---
-  /**
-   * Handles the confirmation of the bulk delete action.
-   * Iterates through selected item IDs, calls the delete API for each,
-   * updates state based on success/failure, and displays errors.
-   */
   const handleConfirmBulkDelete = async () => {
     if (!adminKey) {
       setBulkDeleteError("Admin key is missing from URL. Cannot delete items.");
@@ -174,14 +115,15 @@ export default function AdminPage() {
     setBulkDeleteError(null);
     const errors: string[] = [];
     const successfullyDeleted: string[] = [];
+    const itemsToDelete = selectedItems as string[]; // Cast selection model
 
     // Use Promise.allSettled to attempt all deletions even if some fail
     const results = await Promise.allSettled(
-      selectedItems.map((id) => deleteItem(id, adminKey)),
+      itemsToDelete.map((id) => deleteItem(id, adminKey)),
     );
 
     results.forEach((result, index) => {
-      const itemId = selectedItems[index];
+      const itemId = itemsToDelete[index];
       if (result.status === "fulfilled") {
         successfullyDeleted.push(itemId);
       } else {
@@ -204,7 +146,7 @@ export default function AdminPage() {
       );
     }
 
-    // Clear selection
+    // Clear selection (DataGrid selection model is controlled)
     setSelectedItems([]);
 
     // Handle errors
@@ -218,6 +160,68 @@ export default function AdminPage() {
     setShowBulkConfirm(false); // Close confirmation dialog
   };
   // --- End Bulk Delete Handler ---
+
+  // --- DataGrid Column Definitions ---
+  const columns: GridColDef[] = [
+    // Selection checkbox column is added automatically by `checkboxSelection` prop
+    {
+      field: 'created_at',
+      headerName: 'Created At',
+      width: 180,
+      resizable: true,
+      type: 'dateTime', // Use dateTime type for better sorting/filtering
+      valueGetter: (value) => value ? new Date(value) : null, // Convert string to Date object
+      renderCell: (params) => params.value ? params.value.toLocaleString() : '', // Format for display
+    },
+    {
+      field: 'title',
+      headerName: 'Title',
+      width: 200,
+      resizable: true,
+    },
+    {
+      field: 'visibility',
+      headerName: 'Visibility',
+      width: 100,
+      resizable: true,
+    },
+    {
+      field: 'category',
+      headerName: 'Category',
+      width: 150,
+      resizable: true,
+      valueGetter: (value) => value || 'N/A', // Handle null/empty categories
+    },
+    {
+      field: 'item_id',
+      headerName: 'Item ID',
+      width: 280,
+      resizable: true,
+      renderCell: (params) => <code>{params.value}</code>, // Render ID as code
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 100,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      align: 'center',
+      renderCell: (params) => (
+        <Tooltip title="Delete Item">
+          {/* IconButton needs to stop propagation */}
+          <IconButton
+            size="small"
+            color="error"
+            onClick={(event) => handleDeleteClick(event, params.row.item_id)}
+            aria-label="delete item"
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ];
 
   return (
     <Container maxWidth="lg">
@@ -261,99 +265,35 @@ export default function AdminPage() {
       )}
 
       {!isLoading && !error && (
-        <TableContainer component={Paper}>
-          <Table sx={{ minWidth: 650 }} aria-label="all items table">
-            <TableHead>
-              <TableRow>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    color="primary"
-                    indeterminate={
-                      selectedItems.length > 0 &&
-                      selectedItems.length < items.length
-                    }
-                    checked={
-                      items.length > 0 && selectedItems.length === items.length
-                    }
-                    onChange={handleSelectAllClick}
-                    inputProps={{
-                      "aria-label": "select all items",
-                    }}
-                  />
-                </TableCell>
-                <TableCell>Created At</TableCell>
-                <TableCell>Title</TableCell>
-                <TableCell>Visibility</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Item ID</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {items.map((item) => {
-                const isItemSelected = isSelected(item.item_id);
-                const labelId = `enhanced-table-checkbox-${item.item_id}`;
-
-                return (
-                  <TableRow
-                    hover
-                    onClick={(event) =>
-                      handleSelectOneClick(event as any, item.item_id)
-                    } // Cast event for simplicity, refine if needed
-                    role="checkbox"
-                    aria-checked={isItemSelected}
-                    tabIndex={-1}
-                    key={item.item_id}
-                    selected={isItemSelected}
-                    sx={{
-                      cursor: "pointer",
-                      "&:last-child td, &:last-child th": { border: 0 },
-                    }}
-                  >
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        color="primary"
-                        checked={isItemSelected}
-                        inputProps={{
-                          "aria-labelledby": labelId,
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell component="th" scope="row" id={labelId}>
-                      {new Date(item.created_at).toLocaleString()}
-                    </TableCell>
-                    <TableCell>{item.title}</TableCell>
-                    <TableCell>{item.visibility}</TableCell>
-                    <TableCell>{item.category || "N/A"}</TableCell>
-                    <TableCell>
-                      <code>{item.item_id}</code>
-                    </TableCell>
-                    <TableCell align="right">
-                      {/* TODO: Add link to item page if needed */}
-                      {/* <Tooltip title="View Item">
-                                            <IconButton size="small" component="a" href={`/items/${item.item_id}`} target="_blank">
-                                                <LinkIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip> */}
-                      <Tooltip title="Delete Item">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleDeleteClick(item.item_id)}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ); // Add closing parenthesis for the return statement
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <Box sx={{ height: 650, width: '100%' }}> {/* DataGrid needs explicit height */}
+          <DataGrid
+            rows={items}
+            columns={columns}
+            getRowId={(row) => row.item_id} // Use item_id as the unique ID
+            checkboxSelection // Enable checkboxes
+            onRowSelectionModelChange={(newSelectionModel) => {
+              setSelectedItems(newSelectionModel); // Update state on selection change
+            }}
+            rowSelectionModel={selectedItems} // Control selection state
+            disableRowSelectionOnClick // Prevent selection when clicking cells
+            slots={{ toolbar: GridToolbar }} // Add the toolbar
+            slotProps={{
+              toolbar: {
+                showQuickFilter: true, // Enable the quick filter search bar
+                printOptions: { disableToolbarButton: true }, // Optional: hide print
+                csvOptions: { disableToolbarButton: true }, // Optional: hide CSV export
+              },
+            }}
+            initialState={{ // Optional: Set initial sorting
+              sorting: {
+                sortModel: [{ field: 'created_at', sort: 'desc' }],
+              },
+            }}
+          />
+        </Box>
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog (Single) */}
       <Dialog
         open={!!deleteItemId}
         onClose={handleCloseDeleteDialog}
